@@ -1,5 +1,6 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
+#include "include/promt.h"
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -91,7 +92,7 @@ int main(void) {
 
     while (1) {
         /* prompt */
-        out_puts("$ ");
+        promt();
 
         int n = in_readline(line, sizeof(line));
 
