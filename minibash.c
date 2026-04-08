@@ -1,6 +1,7 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
-
+#include <pwd.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
