@@ -1,62 +1,33 @@
-#include <iostream>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <vector>
-#include <sstream>
-#include <cstring>
-
-std::vector<char*> parse_input(const std::string& input) {
-    std::stringstream ss(input);
-    std::string token;
-    std::vector<char*> args;
-
-    while (ss >> token) {
-        char* arg = new char[token.size() + 1];
-        std::strcpy(arg, token.c_str());
-        args.push_back(arg);
-    }
-
-    args.push_back(nullptr);
-    return args;
-}
+#include <string.h>
+#include <stdio.h>
 
 int main() {
-    std::string input;
+    char buf[256];
+    char* argv[32];
 
-    while (true) {
-        std::cout << "$ ";
-        std::getline(std::cin, input);
+    while (1) {
+        write(1, "$ ", 2);
+        if (!fgets(buf, sizeof(buf), stdin)) break;
 
-        if (input.empty())
-            continue;
+        buf[strcspn(buf, "\n")] = 0;
+        if (!buf[0]) continue;
+        if (!strcmp(buf, "exit")) break;
 
-        if (input == "exit")
-            break;
+        int i = 0;
+        argv[i++] = strtok(buf, " ");
+        while ((argv[i++] = strtok(0, " ")));
 
-        if (input.substr(0, 2) == "cd") {
-            std::string dir = input.substr(3);
-            if (chdir(dir.c_str()) != 0)
-                perror("cd");
+        if (!strcmp(argv[0], "cd")) {
+            chdir(argv[1] ? argv[1] : "/");
             continue;
         }
 
-        auto args = parse_input(input);
-
-        pid_t pid = fork();
-
-        if (pid == 0) {
-            execvp(args[0], args.data());
-            perror("exec");
-            exit(1);
-        } else if (pid > 0) {
-            wait(nullptr);
-        } else {
-            perror("fork");
+        if (!fork()) {
+            execvp(argv[0], argv);
+            _exit(1);
         }
-
-        for (char* arg : args)
-            delete[] arg;
+        wait(0);
     }
-
-    return 0;
 }
