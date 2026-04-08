@@ -22,10 +22,14 @@ static inline int in_getc(void) {
 static inline int in_readline(char *buf, int max) {
     int i = 0;
     char c;
+    int r;
 
     while (i < max - 1) {
-        if (read(0, &c, 1) != 1)
-            break;
+        r = read(0, &c, 1);
+        if (r == 0)      /* EOF */
+            return -1;
+        if (r < 0)
+            return -1;
         if (c == '\n')
             break;
         buf[i++] = c;
