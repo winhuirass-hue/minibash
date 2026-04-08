@@ -1,5 +1,5 @@
-#include "inlib.h"
-#include "outlib.h"
+#include "include/inlib.h"
+#include "include/outlib.h"
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
