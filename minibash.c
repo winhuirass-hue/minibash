@@ -6,9 +6,53 @@
 
 #define MAXLINE 256
 #define MAXARGS 32
+#define MAXPATH 128
 
-static void prompt(void) {
-    out_puts("$ ");
+extern char **environ;
+
+/* -------------------------------------------------
+ * Try execve with PATH lookup (minimal execvp clone)
+ * ------------------------------------------------- */
+static void do_execve(char **argv) {
+    /* If command contains '/', try directly */
+    if (strchr(argv[0], '/')) {
+        execve(argv[0], argv, environ);
+        return;
+    }
+
+    /* Get PATH */
+    char *path = 0;
+    for (char **e = environ; *e; e++) {
+        if (!strncmp(*e, "PATH=", 5)) {
+            path = *e + 5;
+            break;
+        }
+    }
+
+    if (!path)
+        return;
+
+    char full[MAXPATH];
+    while (*path) {
+        char *p = full;
+
+        /* copy directory */
+        while (*path && *path != ':')
+            *p++ = *path++;
+
+        if (*path == ':')
+            path++;
+
+        *p++ = '/';
+
+        /* copy command */
+        char *c = argv[0];
+        while (*c)
+            *p++ = *c++;
+
+        *p = 0;
+        execve(full, argv, environ);
+    }
 }
 
 static int parse(char *line, char **argv) {
@@ -27,21 +71,12 @@ static int parse(char *line, char **argv) {
     return n;
 }
 
-static void run(char **argv) {
-    if (!fork()) {
-        execvp(argv[0], argv);
-        out_puts("exec failed\n");
-        _exit(1);
-    }
-    wait(0);
-}
-
 int main(void) {
     char line[MAXLINE];
     char *argv[MAXARGS];
 
     while (1) {
-        prompt();
+        out_puts("$ ");
 
         if (in_readline(line, sizeof(line)) <= 0)
             break;
@@ -57,14 +92,16 @@ int main(void) {
             break;
 
         if (!strcmp(argv[0], "cd")) {
-            if (argv[1])
-                chdir(argv[1]);
-            else
-                chdir("/");
+            chdir(argv[1] ? argv[1] : "/");
             continue;
         }
 
-        run(argv);
+        if (!fork()) {
+            do_execve(argv);
+            out_puts("command not found\n");
+            _exit(1);
+        }
+        wait(0);
     }
     return 0;
 }
