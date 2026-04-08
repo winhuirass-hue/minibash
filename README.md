@@ -1,1 +1,1 @@
-g++ minibash.cpp -Os -s -nostartfiles -o minibash
+gcc minibash.c -Os -s -o minibash
