@@ -1,9 +1,16 @@
 #ifndef PROMT_H
 #define PROMT_H
 
+#include "./outlib.h"
+
 #include <unistd.h>
-#include <pwd.h>
 #include <sys/types.h>
+
+
+#ifdef __GLIBC__
+#include <pwd.h>
+#endif
+
 
 static void prompt(void) {
     char cwd[128];
@@ -30,4 +37,4 @@ static void prompt(void) {
         out_puts("$ ");
 }
 
-#endif
+#endif /* PROMPT_H */
