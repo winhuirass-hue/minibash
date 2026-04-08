@@ -1,8 +1,10 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
+
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <errno.h>
 
 #define MAXLINE 256
 #define MAXARGS 32
@@ -11,16 +13,39 @@
 extern char **environ;
 
 /* -------------------------------------------------
- * Try execve with PATH lookup (minimal execvp clone)
+ * Parse command line into argv[]
+ * ------------------------------------------------- */
+static int parse(char *line, char **argv) {
+    int n = 0;
+
+    while (*line && n < MAXARGS - 1) {
+        while (*line == ' ')
+            *line++ = 0;
+
+        if (!*line)
+            break;
+
+        argv[n++] = line;
+
+        while (*line && *line != ' ')
+            line++;
+    }
+
+    argv[n] = 0;
+    return n;
+}
+
+/* -------------------------------------------------
+ * Minimal execvp using execve + PATH
  * ------------------------------------------------- */
 static void do_execve(char **argv) {
-    /* If command contains '/', try directly */
+    /* Direct path */
     if (strchr(argv[0], '/')) {
         execve(argv[0], argv, environ);
         return;
     }
 
-    /* Get PATH */
+    /* Find PATH */
     char *path = 0;
     for (char **e = environ; *e; e++) {
         if (!strncmp(*e, "PATH=", 5)) {
@@ -33,6 +58,7 @@ static void do_execve(char **argv) {
         return;
 
     char full[MAXPATH];
+
     while (*path) {
         char *p = full;
 
@@ -55,53 +81,75 @@ static void do_execve(char **argv) {
     }
 }
 
-static int parse(char *line, char **argv) {
-    int n = 0;
-
-    while (*line && n < MAXARGS - 1) {
-        while (*line == ' ')
-            *line++ = 0;
-        if (!*line)
-            break;
-        argv[n++] = line;
-        while (*line && *line != ' ')
-            line++;
-    }
-    argv[n] = 0;
-    return n;
-}
-
+/* -------------------------------------------------
+ * Main shell loop
+ * ------------------------------------------------- */
 int main(void) {
     char line[MAXLINE];
     char *argv[MAXARGS];
 
     while (1) {
+        /* prompt */
         out_puts("$ ");
 
-        if (in_readline(line, sizeof(line)) <= 0)
+        int n = in_readline(line, sizeof(line));
+
+        /* EOF (Ctrl+D) */
+        if (n < 0)
             break;
 
-        if (!line[0])
+        /* empty line */
+        if (n == 0)
             continue;
 
         int argc = parse(line, argv);
         if (argc == 0)
             continue;
 
+        /* builtins */
         if (!strcmp(argv[0], "exit"))
             break;
 
         if (!strcmp(argv[0], "cd")) {
-            chdir(argv[1] ? argv[1] : "/");
+            if (argv[1])
+                chdir(argv[1]);
+            else
+                chdir("/");
             continue;
         }
 
-        if (!fork()) {
+        /* fork + exec */
+        pid_t pid = fork();
+        if (pid == 0) {
             do_execve(argv);
-            out_puts("command not found\n");
-            _exit(1);
+
+            /* exec failed */
+            out_puts("minibash: cannot execute ");
+            out_puts(argv[0]);
+            out_puts(" (errno=");
+            out_putu(errno);
+            out_puts(")\n");
+
+            _exit(127);
         }
-        wait(0);
+
+        int st;
+        wait(&st);
+
+        /* show exit info */
+        if (WIFEXITED(st)) {
+            int code = WEXITSTATUS(st);
+            if (code != 0) {
+                out_puts("exit code: ");
+                out_putu(code);
+                out_putc('\n');
+            }
+        } else if (WIFSIGNALED(st)) {
+            out_puts("terminated by signal ");
+            out_putu(WTERMSIG(st));
+            out_putc('\n');
+        }
     }
+
     return 0;
 }
