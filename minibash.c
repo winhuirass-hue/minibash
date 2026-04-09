@@ -148,8 +148,6 @@ int main(void) {
 
         char *s = trim(line);
 
-        /* builtins (no && for them here) */
-        cmp(s, exit)); break;
         if (!strncmp(s, "cd", 2)) {
             char *p = s + 2; while (*p == ' ') p++;
             chdir(*p ? p : "/");
