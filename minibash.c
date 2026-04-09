@@ -2,6 +2,7 @@
 #include "include/outlib.h"
 #include "include/promt.h"
 #include "include/ministd.h"
+#include "include/minicalls.h"
 
 #define MAXLINE 256
 #define MAXARGS 32
