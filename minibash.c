@@ -1,7 +1,7 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
 #include "include/promt.h"
-
+#include "include/ministd.h"
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
