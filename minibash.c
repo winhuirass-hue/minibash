@@ -1,6 +1,5 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
-#include "include/promt.h"
 #include "include/ministd.h"
 #include "include/minicalls.h"
 
