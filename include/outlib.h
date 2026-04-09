@@ -1,7 +1,7 @@
 #ifndef OUTLIB_H
 #define OUTLIB_H
 
-#include <unistd.h>   /* write */
+long write(int, const void*, unsigned long);
 
 /* -------------------------------------------------
  * Write raw buffer to given file descriptor

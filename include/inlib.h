@@ -2,7 +2,6 @@
 #define INLIB_H
 
 long read(int, void*, unsigned long);
-long write(int, const void*, unsigned long);
 
 
 /* -------------------------------------------------
