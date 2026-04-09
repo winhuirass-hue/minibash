@@ -1,6 +1,6 @@
 #include "include/inlib.h"
 #include "include/outlib.h"
-#include "include/prompt.h"
+#include "include/promt.h"
 
 #include <unistd.h>
 #include <sys/wait.h>
@@ -149,10 +149,33 @@ int main(void) {
         char *s = trim(line);
 
         /* builtins (no && for them here) */
-        if (!strcmp(s, "exit")) break;
+        cmp(s, "exit")) break;
         if (!strncmp(s, "cd", 2)) {
             char *p = s + 2; while (*p == ' ') p++;
             chdir(*p ? p : "/");
+         if (!strncmp(s, "exec", 4)) {
+            char *p = s + 4;
+            while (*p == ' ') p++;
+
+        if (!*p) {
+             out_puts("minibash: exec: missing command\n");
+             continue;
+    }
+
+             char *argv[MAXARGS];
+             parse_words(p, argv);
+
+             do_execve(argv);
+
+    /* if we are here — exec failed */
+             out_puts("minibash: exec failed ");
+             out_puts(argv[0]);
+             out_puts(" (errno=");
+             out_putu(errno);
+             out_puts(")\n");
+
+           _exit(127);
+    }   
             continue;
         }
 
