@@ -1,7 +1,9 @@
 #ifndef INLIB_H
 #define INLIB_H
 
-#include <unistd.h>   /* read */
+long read(int, void*, unsigned long);
+long write(int, const void*, unsigned long);
+
 
 /* -------------------------------------------------
  * Read one character from stdin
