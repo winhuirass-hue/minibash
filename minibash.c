@@ -129,7 +129,7 @@ int main(void) {
     char *cmds[MAXCMDS];
 
     while (1) {
-        prompt();
+        out_puts("$ ");
 
         int n = in_readline(line, sizeof(line));
         if (n < 0) _exit(0);
