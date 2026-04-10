@@ -16,22 +16,26 @@ environ:
 
 /* ---------------- entry point ---------------- */
 .extern main
+
 _start:
     xor %rbp, %rbp
 
-    /* ----- extract envp from stack ----- */
-    mov (%rsp), %rdi        # rdi = argc
-    lea 8(%rsp), %rsi       # rsi = argv
-    lea 8(%rsi,%rdi,8), %rdx  # rdx = &argv[argc]
-    add $8, %rdx            # skip NULL → envp
+    /* ----- extract argc/argv/envp ----- */
+    mov (%rsp), %rdi              # argc
+    lea 8(%rsp), %rsi             # argv
+    lea 8(%rsi,%rdi,8), %rdx      # &argv[argc]
+    add $8, %rdx                  # skip NULL
+    mov %rdx, environ(%rip)       # environ = envp
 
-    mov %rdx, environ(%rip) # environ = envp
-
+    /* ----- ABI-CRITICAL STACK FIX ----- */
+    sub $8, %rsp                  # ✅ вирівнюємо стек
     call main
+    add $8, %rsp                  # відновлення
 
     mov %rax, %rdi
-    mov $60, %rax            # SYS_exit
+    mov $60, %rax                 # SYS_exit
     syscall
+
 
 
 /* ---------------- syscalls ---------------- */
