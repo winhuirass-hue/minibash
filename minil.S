@@ -1,93 +1,269 @@
-/* a minil c library */
-.intel_syntax noprefix
-.global _start
-.global environ
+/* This software is dedicated to the public domain under CC0 1.0 Universal. */
+/* See winhuirass-hue/minil/LICENCE.md for full legal text. */
 
-.extern main
+        .global _start
+        .global environ
+        .extern main
 
-.section .bss
+/* ====================== bss ====================== */
+        .section .bss
 #if defined(__x86_64__)
 environ:
-    .quad 0
+        .quad 0
 #else
 environ:
-    .long 0
+        .long 0
 #endif
 
-.section .text
+
+/* ====================== text ====================== */
+        .section .text
+
+.extern __init_array_start
+.extern __init_array_end
+
+call_init_array:
+#if defined(__x86_64__)
+        leaq __init_array_start(%rip), %rdi
+        leaq __init_array_end(%rip), %rsi
+1:
+        cmp %rdi, %rsi
+        je 2f
+        movq (%rdi), %rax
+        addq $8, %rdi
+        call *%rax
+        jmp 1b
+2:
+        ret
+
+#else
+
+        movl $__init_array_start, %esi
+        movl $__init_array_end, %edi
+1:
+        cmpl %esi, %edi
+        je 2f
+        movl (%esi), %eax
+        addl $4, %esi
+        call *%eax
+        jmp 1b
+2:
+        ret
+
+#endif
 
 _start:
 
 #if defined(__x86_64__)
 
-    xor rbp, rbp
+/* ---------- x86-64 ---------- */
 
-    mov rdi, [rsp]              /* argc */
-    lea rsi, [rsp+8]            /* argv */
-    lea rdx, [rsi+rdi*8+8]      /* envp */
+        xorq    %rbp, %rbp
+        movq    %rsp, %r12
 
-    mov [rel environ], rdx
+        movq    (%r12), %rdi            /* argc */
+        leaq    8(%r12), %rsi           /* argv */
+        leaq    8(%rsi,%rdi,8), %rdx    /* envp */
 
-    call main
+        movq    %rdx, environ(%rip)
+        andq    $-16, %rsp
+        subq $8, %rsp
 
-    mov rdi, rax
-    mov rax, 60                 
-    syscall
+        call    call_init_array
+        call    main
 
-#else   /* ==================== i386 ==================== */
+        movq    %rax, %rdi
+        movq    $60, %rax               /* SYS_exit */
+        syscall
 
-    xor ebp, ebp
+#else   /* ---------- i386 ---------- */
 
-    mov eax, [esp]              /* argc */
-    lea ecx, [esp+4]            /* argv */
-    lea edx, [ecx+eax*4+4]      /* envp */
+        xorl    %ebp, %ebp
 
-    mov [environ], edx
+        movl    (%esp), %eax            /* argc */
+        leal    4(%esp), %ecx           /* argv */
+        leal    4(%ecx,%eax,4), %edx    /* envp */
 
-    push edx
-    push ecx
-    push eax
-    call main
+        movl    %edx, environ
 
-    mov ebx, eax
-    mov eax, 1                  /* SYS_exit */
-    int 0x80
+        pushl   %edx
+        pushl   %ecx
+        pushl   %eax
+        call    call_init_array
+        call    main
+
+        movl    %eax, %ebx
+        movl    $1, %eax                /* SYS_exit */
+        int     $0x80
 
 #endif
 
 
 /* ====================== syscalls ====================== */
 
-.global write
+        .global write
 write:
 #if defined(__x86_64__)
-    mov rax, 1                  /* SYS_write */
-    syscall
+
+        movq    $1, %rax                /* SYS_write */
+        syscall
+
 #else
-    mov eax, 4                  /* SYS_write */
-    int 0x80
+
+        movl    4(%esp), %ebx           /* fd */
+        movl    8(%esp), %ecx           /* buf */
+        movl    12(%esp), %edx          /* len */
+        movl    $4, %eax                /* SYS_write */
+        int     $0x80
+
 #endif
-    ret
+        ret
 
 
-.global read
+        .global read
 read:
 #if defined(__x86_64__)
-    mov rax, 0                  /* SYS_read */
-    syscall
+
+        movq    $0, %rax                /* SYS_read */
+        syscall
+
 #else
-    mov eax, 3                  /* SYS_read */
-    int 0x80
+
+        movl    4(%esp), %ebx
+        movl    8(%esp), %ecx
+        movl    12(%esp), %edx
+        movl    $3, %eax
+        int     $0x80
+
 #endif
-    ret
+        ret
 
 
-.global _exit
+        .global println
+println:
+#if defined(__x86_64__)
+        /* rdi = pointer to string */
+
+        /* strlen */
+        xorq    %rcx, %rcx
+.Llen:
+        cmpb    $0, (%rdi,%rcx)
+        je      .Lwrite
+        incq    %rcx
+        jmp     .Llen
+
+.Lwrite:
+        movq    %rcx, %rdx        /* len */
+        movq    %rdi, %rsi        /* buf */
+        movq    $1, %rdi          /* fd = stdout */
+        movq    $1, %rax          /* SYS_write */
+        syscall
+
+        /* newline */
+        movq    $1, %rdi
+        lea     nl(%rip), %rsi
+        movq    $1, %rdx
+        movq    $1, %rax
+        syscall
+        ret
+#else
+        /* i386 version */
+
+        pushl   %esi
+        pushl   %edi
+        movl    4(%esp), %esi     /* s */
+        xor     %ecx, %ecx
+.Llen32:
+        cmpb    $0, (%esi,%ecx)
+        je      .Lwrite32
+        incl    %ecx
+        jmp     .Llen32
+
+.Lwrite32:
+        movl    %ecx, %edx        /* len */
+        movl    %esi, %ecx        /* buf */
+        movl    $1, %ebx          /* fd */
+        movl    $4, %eax          /* SYS_write */
+        int     $0x80
+
+        movl    $1, %ebx
+        lea     nl, %ecx
+        movl    $1, %edx
+        movl    $4, %eax
+        int     $0x80
+
+        popl    %edi
+        popl    %esi
+        ret
+#endif
+
+
+        .global _exit
 _exit:
 #if defined(__x86_64__)
-    mov rax, 60                 /* SYS_exit */
-    syscall
+        /* rdi already contains status */
+        movq    $60, %rax               /* SYS_exit */
+        syscall
 #else
-    mov eax, 1
-    int 0x80
+        movl    4(%esp), %ebx
+        movl    $1, %eax
+        int     $0x80
 #endif
+
+/* ============ math ============== */
+
+.global math_abs
+math_abs:
+#if defined(__x86_64__)
+    movl    %edi, %eax
+    testl   %eax, %eax
+    jge     1f
+    negl    %eax
+#else
+    movl    4(%esp), %eax
+    testl   %eax, %eax
+    jge     1f
+    negl    %eax
+#endif
+1:
+    ret
+
+.global math_max
+math_max:
+#if defined(__x86_64__)
+    movl    %edi, %eax
+    cmpl    %esi, %eax
+    jge     1f
+    movl    %esi, %eax
+#else
+    movl    4(%esp), %eax
+    cmpl    8(%esp), %eax
+    jge     1f
+    movl    8(%esp), %eax
+#endif
+1:
+    ret
+
+.global math_min
+math_min:
+#if defined(__x86_64__)
+    movl    %edi, %eax      /* eax = a */
+    cmpl    %esi, %eax      /* compare b with a */
+    jle     1f              /* if a <= b, keep a */
+    movl    %esi, %eax      /* else eax = b */
+1:
+    ret 
+#else
+    movl    4(%esp), %eax   /* eax = a */
+    cmpl    8(%esp), %eax  /* compare b with a */
+    jle     1f
+    movl    8(%esp), %eax
+1:
+    ret
+#endif
+
+.section .rodata
+nl:
+        .byte 10
+
+.section .note.GNU-stack,"",@progbits
